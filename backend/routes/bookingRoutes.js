@@ -12,4 +12,10 @@ router.put('/extend/:bookingId', auth, bookingController.extendBooking);
 // View user's bookings
 router.get('/my', auth, bookingController.getMyBookings);
 
+
+// Approve a booking
+router.put('/:bookingId/approve', auth, bookingController.approveBooking);
+// Reject a booking
+router.put('/:bookingId/reject', auth, bookingController.rejectBooking);
+
 module.exports = router;
