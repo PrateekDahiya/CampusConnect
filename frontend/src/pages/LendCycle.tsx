@@ -12,14 +12,23 @@ export default function LendCycle() {
         bookings,
         loadBookings,
         returnBooking,
+        createListing,
+        requestCycle,
     } = useStore();
     const [locationFilter, setLocationFilter] = useState("");
     const [loading, setLoading] = useState(false);
+    const [model, setModel] = useState("");
+    const [desc, setDesc] = useState("");
+    const [fee, setFee] = useState<string>("0");
+    const [deposit, setDeposit] = useState<string>("0");
+    const [isGear, setIsGear] = useState(false);
 
     useEffect(() => {
         setLoading(true);
         loadCycles({ status: "available" }).finally(() => setLoading(false));
         loadBookings(DEMO_USER);
+        // load owner requests if demo user is owner
+        // simplistic: filter cycleRequests from mock DB via store's loadCycles; we don't have a direct api here, so owner requests will be fetched when ownerView toggled
     }, []);
 
     const onFilter = async () => {
@@ -29,6 +38,42 @@ export default function LendCycle() {
             location: locationFilter || undefined,
         });
         setLoading(false);
+    };
+
+    const onCreateListing = async () => {
+        try {
+            await createListing({
+                model,
+                description: desc,
+                owner: DEMO_USER,
+                fee: Number(fee),
+                deposit: Number(deposit),
+                isGear,
+                location: "Near " + DEMO_USER,
+                isApproved: true,
+            });
+            setModel("");
+            setDesc("");
+            setFee("0");
+            setDeposit("0");
+            setIsGear(false);
+            await loadCycles({ status: "available" });
+        } catch (e: any) {
+            alert(e.message || "Create failed");
+        }
+    };
+
+    const onRequest = async (cycleId: string) => {
+        try {
+            await requestCycle({
+                cycleId,
+                requesterId: DEMO_USER,
+                message: "Request via app",
+            });
+            await loadCycles({ status: "available" });
+        } catch (e: any) {
+            alert(e.message || "Request failed");
+        }
     };
 
     const onBook = async (cycleId: string) => {
@@ -66,6 +111,51 @@ export default function LendCycle() {
             </div>
 
             <div className="bg-white p-4 rounded shadow">
+                <div className="mb-4 border-b pb-4">
+                    <h3 className="font-semibold mb-2">Create a Listing</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                        <input
+                            value={model}
+                            onChange={(e) => setModel(e.target.value)}
+                            placeholder="Model / Name"
+                            className="border rounded px-3 py-2"
+                        />
+                        <input
+                            value={fee}
+                            onChange={(e) => setFee(e.target.value)}
+                            placeholder="Fee"
+                            className="border rounded px-3 py-2"
+                        />
+                        <input
+                            value={deposit}
+                            onChange={(e) => setDeposit(e.target.value)}
+                            placeholder="Deposit"
+                            className="border rounded px-3 py-2"
+                        />
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={isGear}
+                                onChange={(e) => setIsGear(e.target.checked)}
+                            />{" "}
+                            Gear
+                        </label>
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                        <input
+                            value={desc}
+                            onChange={(e) => setDesc(e.target.value)}
+                            placeholder="Short description"
+                            className="flex-1 border rounded px-3 py-2"
+                        />
+                        <button
+                            className="btn btn-primary"
+                            onClick={onCreateListing}
+                        >
+                            Create
+                        </button>
+                    </div>
+                </div>
                 <div className="flex gap-2 mb-4">
                     <input
                         value={locationFilter}
@@ -113,12 +203,25 @@ export default function LendCycle() {
                                 </div>
                             </div>
                             <div className="mt-3 flex justify-end">
-                                <button
-                                    className="btn btn-sm btn-primary"
-                                    onClick={() => onBook(c.id)}
-                                >
-                                    Book Now
-                                </button>
+                                {!c.owner ? (
+                                    <button
+                                        className="btn btn-sm btn-primary"
+                                        onClick={() => onBook(c.id)}
+                                    >
+                                        Book Now
+                                    </button>
+                                ) : c.owner !== DEMO_USER ? (
+                                    <button
+                                        className="btn btn-sm btn-primary"
+                                        onClick={() => onRequest(c.id)}
+                                    >
+                                        Request
+                                    </button>
+                                ) : (
+                                    <div className="text-xs text-slate-500">
+                                        Your listing
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}

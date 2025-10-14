@@ -25,12 +25,17 @@ function StatusBadge({ status }: { status: string }) {
 export default function Complaints() {
     const { complaints, loadComplaints, addComplaint, updateStatus, loading } =
         useStore();
+    const { addRemark, assignStaff, setSatisfaction } = useStore();
     // ...existing code...
     const [title, setTitle] = useState("");
     const [hostel, setHostel] = useState("Hostel A");
+    const [complaintType, setComplaintType] = useState("Maintenance");
+    const [roomNumber, setRoomNumber] = useState("");
     const [description, setDescription] = useState("");
     const [image, setImage] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement | null>(null);
+    const [query, setQuery] = useState("");
+    const [filterStatus, setFilterStatus] = useState<string>("");
 
     useEffect(() => {
         loadComplaints();
@@ -49,8 +54,10 @@ export default function Complaints() {
         await addComplaint({
             title: title || description.slice(0, 30),
             hostel,
+            complaintType,
+            roomNumber,
             description,
-            image: image || undefined,
+            attachments: image ? [image] : [],
             createdBy: "user1",
         });
         setTitle("");
@@ -86,6 +93,23 @@ export default function Complaints() {
                     />
 
                     <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Complaint Type
+                    </label>
+                    <select
+                        value={complaintType}
+                        onChange={(e) => setComplaintType(e.target.value)}
+                        className="w-full border rounded px-3 py-2 mb-4"
+                    >
+                        <option>Maintenance</option>
+                        <option>Electrical</option>
+                        <option>Plumbing</option>
+                        <option>Hygiene</option>
+                        <option>Food</option>
+                        <option>Internet</option>
+                        <option>Other</option>
+                    </select>
+
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
                         Hostel
                     </label>
                     <select
@@ -97,6 +121,16 @@ export default function Complaints() {
                         <option>Hostel B</option>
                         <option>Hostel C</option>
                     </select>
+
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Room Number
+                    </label>
+                    <input
+                        value={roomNumber}
+                        onChange={(e) => setRoomNumber(e.target.value)}
+                        className="w-full border rounded px-3 py-2 mb-4"
+                        placeholder="e.g. 101"
+                    />
 
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                         Description
@@ -146,6 +180,37 @@ export default function Complaints() {
                 </form>
 
                 <div className="lg:col-span-2">
+                    <div className="flex items-center gap-2 mb-4">
+                        <input
+                            className="border rounded px-3 py-2 flex-1"
+                            placeholder="Search complaints"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                        />
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            className="border rounded px-3 py-2"
+                        >
+                            <option value="">All</option>
+                            <option>Pending</option>
+                            <option>In Progress</option>
+                            <option>Resolved</option>
+                            <option>Rejected</option>
+                        </select>
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                if (query || filterStatus) {
+                                    loadComplaints();
+                                    setQuery("");
+                                    setFilterStatus("");
+                                }
+                            }}
+                        >
+                            Clear
+                        </Button>
+                    </div>
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold">
                             Recent Complaints
@@ -158,84 +223,182 @@ export default function Complaints() {
                     </div>
 
                     <div className="space-y-4">
-                        {complaints.map((c) => (
-                            <Card key={c.id} className="flex gap-4 items-start">
-                                <div className="flex-1">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <div className="text-sm font-semibold">
-                                                {c.title}
+                        {complaints
+                            .filter((c) =>
+                                query
+                                    ? (c.title + " " + c.description)
+                                          .toLowerCase()
+                                          .includes(query.toLowerCase())
+                                    : true
+                            )
+                            .filter((c) =>
+                                filterStatus ? c.status === filterStatus : true
+                            )
+                            .map((c) => (
+                                <Card
+                                    key={c.id}
+                                    className="flex gap-4 items-start"
+                                >
+                                    <div className="flex-1">
+                                        <div className="flex items-start justify-between">
+                                            <div>
+                                                <div className="text-sm font-semibold">
+                                                    {c.title}
+                                                </div>
+                                                <div className="text-xs text-slate-400">
+                                                    {c.complaintType
+                                                        ? c.complaintType +
+                                                          " • "
+                                                        : ""}
+                                                    {c.hostel} •{" "}
+                                                    {c.roomNumber
+                                                        ? "Room " +
+                                                          c.roomNumber +
+                                                          " • "
+                                                        : ""}
+                                                    {new Date(
+                                                        c.createdAt
+                                                    ).toLocaleString()}
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-slate-400">
-                                                {c.hostel} •{" "}
-                                                {new Date(
-                                                    c.createdAt
-                                                ).toLocaleString()}
+                                            <div>
+                                                <StatusBadge
+                                                    status={c.status}
+                                                />
                                             </div>
                                         </div>
-                                        <div>
-                                            <StatusBadge status={c.status} />
-                                        </div>
+                                        <p className="mt-2 text-slate-700">
+                                            {c.description}
+                                        </p>
+                                        {c.remarks && c.remarks.length > 0 && (
+                                            <div className="text-xs text-slate-500 mt-2">
+                                                Remarks:{" "}
+                                                {c.remarks
+                                                    .map((r) => r.text)
+                                                    .join("; ")}
+                                            </div>
+                                        )}
+                                        {c.createdBy && (
+                                            <div className="text-xs text-slate-500 mt-2">
+                                                Reported by: {c.createdBy}
+                                            </div>
+                                        )}
                                     </div>
-                                    <p className="mt-2 text-slate-700">
-                                        {c.description}
-                                    </p>
-                                    {c.createdBy && (
-                                        <div className="text-xs text-slate-500 mt-2">
-                                            Reported by: {c.createdBy}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="w-36 flex flex-col items-end gap-2">
-                                    {c.image && (
-                                        <img
-                                            src={c.image}
-                                            alt="attached"
-                                            className="w-24 h-24 object-cover rounded"
-                                        />
-                                    )}
-                                    <div className="flex gap-2">
-                                        {c.status !== "Resolved" && (
+                                    <div className="w-36 flex flex-col items-end gap-2">
+                                        {c.attachments && c.attachments[0] && (
+                                            <img
+                                                src={c.attachments[0]}
+                                                alt="attached"
+                                                className="w-24 h-24 object-cover rounded"
+                                            />
+                                        )}
+                                        <div className="flex gap-2">
+                                            {c.status !== "Resolved" && (
+                                                <Button
+                                                    variant="secondary"
+                                                    className="btn-sm"
+                                                    onClick={() =>
+                                                        updateStatus(
+                                                            c.id,
+                                                            "Resolved"
+                                                        )
+                                                    }
+                                                >
+                                                    Mark Resolved
+                                                </Button>
+                                            )}
+                                            {c.status === "Pending" && (
+                                                <Button
+                                                    variant="ghost"
+                                                    className="btn-sm"
+                                                    onClick={() =>
+                                                        updateStatus(
+                                                            c.id,
+                                                            "In Progress"
+                                                        )
+                                                    }
+                                                >
+                                                    Start
+                                                </Button>
+                                            )}
                                             <Button
-                                                variant="secondary"
+                                                variant="danger"
                                                 className="btn-sm"
                                                 onClick={() =>
                                                     updateStatus(
                                                         c.id,
-                                                        "Resolved"
+                                                        "Rejected"
                                                     )
                                                 }
                                             >
-                                                Mark Resolved
+                                                Reject
                                             </Button>
-                                        )}
-                                        {c.status === "Pending" && (
+                                        </div>
+                                        <div className="flex gap-2 mt-2">
                                             <Button
                                                 variant="ghost"
                                                 className="btn-sm"
-                                                onClick={() =>
-                                                    updateStatus(
-                                                        c.id,
-                                                        "In Progress"
-                                                    )
-                                                }
+                                                onClick={async () => {
+                                                    const text =
+                                                        prompt("Add remark");
+                                                    if (text)
+                                                        await addRemark(
+                                                            c.id,
+                                                            text
+                                                        );
+                                                }}
                                             >
-                                                Start
+                                                Add Remark
                                             </Button>
-                                        )}
-                                        <Button
-                                            variant="danger"
-                                            className="btn-sm"
-                                            onClick={() =>
-                                                updateStatus(c.id, "Rejected")
-                                            }
-                                        >
-                                            Reject
-                                        </Button>
+                                            <Button
+                                                variant="ghost"
+                                                className="btn-sm"
+                                                onClick={async () => {
+                                                    const staff =
+                                                        prompt(
+                                                            "Assign staff id"
+                                                        );
+                                                    if (staff)
+                                                        await assignStaff(
+                                                            c.id,
+                                                            staff
+                                                        );
+                                                }}
+                                            >
+                                                Assign
+                                            </Button>
+                                            {c.status === "Resolved" && (
+                                                <div className="flex gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        className="btn-sm"
+                                                        onClick={() =>
+                                                            setSatisfaction(
+                                                                c.id,
+                                                                "yes"
+                                                            )
+                                                        }
+                                                    >
+                                                        Satisfied
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        className="btn-sm"
+                                                        onClick={() =>
+                                                            setSatisfaction(
+                                                                c.id,
+                                                                "no"
+                                                            )
+                                                        }
+                                                    >
+                                                        Not satisfied
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            </Card>
-                        ))}
+                                </Card>
+                            ))}
                     </div>
                 </div>
             </div>
