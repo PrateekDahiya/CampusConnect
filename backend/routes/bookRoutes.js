@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const bookController = require('../controllers/bookController');
 const auth = require('../middleware/auth');
+const upload = require('../middleware/multer');
 
 // Add a new book
-router.post('/', auth, bookController.addBook);
+router.post('/', auth, upload.single('image'), bookController.addBook);
 // Edit book details
 router.put('/:id', auth, bookController.editBook);
 // Browse/search books

@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const cycleController = require('../controllers/cycleController');
 const auth = require('../middleware/auth');
+const upload = require('../middleware/multer');
 
 // Create a new cycle listing
-router.post('/', auth, cycleController.createCycle);
+router.post('/', auth, upload.array('images', 5), cycleController.createCycle);
 // Get all cycles posted by the owner
 router.get('/my', auth, cycleController.getMyCycles);
 // Edit cycle details
