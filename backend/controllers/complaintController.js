@@ -125,3 +125,26 @@ exports.assignStaff = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
+// Delete a complaint (owner or admin)
+exports.deleteComplaint = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const complaint = await Complaint.findById(id);
+        if (!complaint)
+            return res.status(404).json({ message: "Complaint not found" });
+        const isOwner =
+            complaint.createdBy &&
+            complaint.createdBy.toString() === req.user.userId;
+        const isAdmin = req.user.role === "admin";
+        if (!isOwner && !isAdmin)
+            return res
+                .status(403)
+                .json({ message: "Not authorized to delete complaint" });
+        await Complaint.findByIdAndDelete(id);
+        res.json({ message: "Complaint deleted" });
+    } catch (err) {
+        console.error("deleteComplaint error", err);
+        res.status(500).json({ message: "Server error" });
+    }
+};

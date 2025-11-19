@@ -38,6 +38,7 @@ type ComplaintState = {
   // Placeholder functions for frontend compatibility
   addRemark: (id: string, text: string) => Promise<void>;
   assignStaff: (id: string, staffId: string) => Promise<void>;
+  deleteComplaint: (id: string) => Promise<void>;
 };
 
 type CycleState = {
@@ -59,6 +60,7 @@ type CycleState = {
   approveBooking: (bookingId: string) => Promise<void>;
   rejectBooking: (bookingId: string) => Promise<void>;
   cancelBooking: (bookingId: string) => Promise<void>;
+  deleteCycle: (id: string) => Promise<void>;
 };
 
 type AppState = AuthState & ComplaintState & CycleState;
@@ -232,6 +234,16 @@ export const useAppStore = create<AppState>((set) => ({
     }
   },
 
+  deleteComplaint: async (id: string) => {
+    try {
+      await api.complaints.deleteComplaint(id);
+      set((state) => ({ complaints: state.complaints.filter((c) => c.id !== id) }));
+    } catch (error) {
+      console.error('Failed to delete complaint:', error);
+      throw error;
+    }
+  },
+
   // Cycle actions
   loadCycles: async (filters?: { hostel?: string }) => {
     set({ cyclesLoading: true });
@@ -253,6 +265,15 @@ export const useAppStore = create<AppState>((set) => ({
       }));
     } catch (error) {
       console.error('Failed to create cycle:', error);
+      throw error;
+    }
+  },
+  deleteCycle: async (id: string) => {
+    try {
+      await api.cycles.deleteCycle(id);
+      set((state) => ({ cycles: state.cycles.filter((c: any) => (c._id || c.id) !== id) }));
+    } catch (error) {
+      console.error('Failed to delete cycle:', error);
       throw error;
     }
   },

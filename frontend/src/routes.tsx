@@ -3,7 +3,7 @@ import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Complaints from "./pages/Complaints";
 import LendCycle from "./pages/LendCycle";
-import LostFound from "./pages/LostFound";
+import LostFound from "./pages/LostFoundNew";
 import BookBank from "./pages/BookBank";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";

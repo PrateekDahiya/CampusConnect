@@ -3,6 +3,13 @@ const LostFound = require("../models/LostFound");
 // Report a lost/found item
 exports.reportItem = async (req, res) => {
     const { type, title, description, location, images } = req.body;
+    // Debug: log incoming request info
+    console.log("reportItem called - headers:", {
+        authorization: req.header("Authorization"),
+        contentType: req.header("Content-Type"),
+    });
+    console.log("reportItem called - user:", req.user);
+    console.log("reportItem called - body:", req.body);
     try {
         const item = new LostFound({
             type,
@@ -10,26 +17,44 @@ exports.reportItem = async (req, res) => {
             description,
             location,
             images,
-            reportedBy: req.user.userId,
+            reportedBy: req.user && req.user.userId ? req.user.userId : null,
         });
         await item.save();
         res.status(201).json(item);
     } catch (err) {
-        res.status(500).json({ message: "Server error" });
+        console.error("reportItem error:", err && err.stack ? err.stack : err);
+        res.status(500).json({ message: "Server error", detail: err?.message });
     }
 };
 
 // Get all lost/found items (with optional filters)
 exports.getItems = async (req, res) => {
-    const { type, location, status } = req.query;
+    const { type, location, status, q, category, sort } = req.query;
     try {
         const query = {};
         if (type) query.type = type;
         if (location) query.location = location;
-        if (status) query.status = status;
-        const items = await LostFound.find(query).sort({ createdAt: -1 });
+        if (category) query.category = category;
+        if (status) {
+            // support 'open' alias meaning not resolved
+            if (status === "open") query.status = { $ne: "resolved" };
+            else query.status = status;
+        }
+        if (q) {
+            // case-insensitive partial match against title or description
+            const regex = new RegExp(
+                q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                "i"
+            );
+            query.$or = [{ title: regex }, { description: regex }];
+        }
+
+        const sortOrder =
+            sort === "oldest" ? { createdAt: 1 } : { createdAt: -1 };
+        const items = await LostFound.find(query).sort(sortOrder);
         res.json(items);
     } catch (err) {
+        console.error("getItems error", err);
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -92,29 +117,104 @@ exports.findMatches = async (req, res) => {
     try {
         const item = await LostFound.findById(id);
         if (!item) return res.status(404).json({ message: "Item not found" });
+        // Fetch candidates (exclude resolved items and self). We fetch a larger
+        // candidate set and score in-app so we can combine multiple signals.
         const candidates = await LostFound.find({
             found: !item.found,
             _id: { $ne: item._id },
-        }).limit(50);
-        // naive text match
-        const q = (item.title || "") + " " + (item.description || "");
-        const qLower = q.toLowerCase();
+            status: { $ne: "resolved" },
+        })
+            .limit(500)
+            .lean();
+
+        // Build tokens from title+description: simple normalization and stopword removal
+        const stopwords = new Set([
+            "the",
+            "and",
+            "a",
+            "an",
+            "of",
+            "in",
+            "on",
+            "at",
+            "for",
+            "to",
+            "is",
+            "are",
+        ]);
+        const raw = (
+            (item.title || "") +
+            " " +
+            (item.description || "")
+        ).toLowerCase();
+        const tokens = Array.from(
+            new Set(
+                raw
+                    .replace(/[^a-z0-9\s]/g, " ")
+                    .split(/\s+/)
+                    .filter((w) => w && w.length >= 3 && !stopwords.has(w))
+            )
+        );
+
+        const now = Date.now();
         const scored = candidates.map((c) => {
-            const text = (
-                (c.title || "") +
-                " " +
-                (c.description || "")
-            ).toLowerCase();
-            const score = qLower
-                .split(/\s+/)
-                .reduce((s, w) => s + (text.includes(w) ? 1 : 0), 0);
-            return { c, score };
+            const title = (c.title || "").toLowerCase();
+            const desc = (c.description || "").toLowerCase();
+            // text score: prefer title matches
+            let textScore = 0;
+            for (const t of tokens) {
+                if (title.includes(t)) textScore += 3;
+                else if (desc.includes(t)) textScore += 1;
+            }
+
+            // location boost
+            let locationBoost = 0;
+            try {
+                if (
+                    item.location &&
+                    c.location &&
+                    item.location.toLowerCase() === c.location.toLowerCase()
+                )
+                    locationBoost = 4;
+            } catch (e) {}
+
+            // category boost
+            const categoryBoost =
+                item.category && c.category && item.category === c.category
+                    ? 2
+                    : 0;
+
+            // recency boost (items within 30 days get higher score)
+            let recencyBoost = 0;
+            if (c.createdAt) {
+                const days = Math.max(
+                    0,
+                    (now - new Date(c.createdAt).getTime()) / (1000 * 3600 * 24)
+                );
+                if (days <= 1) recencyBoost = 3;
+                else if (days <= 7) recencyBoost = 2;
+                else if (days <= 30) recencyBoost = 1;
+            }
+
+            const total =
+                textScore + locationBoost + categoryBoost + recencyBoost;
+            return { item: c, score: total };
         });
-        const top = scored
-            .filter((s) => s.score > 0)
-            .sort((a, b) => b.score - a.score)
-            .map((s) => s.c);
-        res.json(top);
+
+        // Keep only positive-scoring candidates and sort
+        const positive = scored.filter((s) => s.score > 0);
+        if (positive.length === 0) return res.json([]);
+        positive.sort((a, b) => b.score - a.score);
+
+        const max = positive[0].score || 1;
+        // normalize score to 0-100
+        const results = positive
+            .slice(0, 50)
+            .map((s) => ({
+                ...s.item,
+                score: Math.round((s.score / max) * 100),
+            }));
+        res.json(results);
     } catch (err) {
         console.error("findMatches error", err);
         res.status(500).json({ message: "Server error" });
@@ -167,6 +267,29 @@ exports.approveClaim = async (req, res) => {
         res.json(item.claim);
     } catch (err) {
         console.error("approveClaim error", err);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+// Delete a lost/found item (reporter or admin)
+exports.deleteItem = async (req, res) => {
+    const { id } = req.params;
+    if (!isValidObjectId(id))
+        return res.status(400).json({ message: "Invalid id" });
+    try {
+        const item = await LostFound.findById(id);
+        if (!item) return res.status(404).json({ message: "Item not found" });
+        const isReporter =
+            item.reportedBy && item.reportedBy.toString() === req.user.userId;
+        const isAdmin = req.user.role === "admin";
+        if (!isReporter && !isAdmin)
+            return res
+                .status(403)
+                .json({ message: "Not authorized to delete item" });
+        await LostFound.findByIdAndDelete(id);
+        res.json({ message: "Item deleted" });
+    } catch (err) {
+        console.error("deleteItem error", err);
         res.status(500).json({ message: "Server error" });
     }
 };

@@ -23,8 +23,8 @@ export default function FormField({
     // If children is a single React element, inject the id prop for accessibility
     let input = children;
     if (React.isValidElement(children)) {
-        input = React.cloneElement(children as React.ReactElement, {
-            id: (children as any).props.id || id,
+        input = React.cloneElement(children as any, {
+            id: (children as any)?.props?.id || id,
         });
     }
 

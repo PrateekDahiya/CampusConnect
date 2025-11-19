@@ -129,6 +129,9 @@ export const complaintsApi = {
       body: JSON.stringify(complaint),
     });
   },
+  async deleteComplaint(id: string): Promise<{ message: string }> {
+    return apiRequest(`/complaints/${id}`, { method: 'DELETE' });
+  },
 
   async updateComplaintStatus(
     id: string,
@@ -188,6 +191,9 @@ export const booksApi = {
       body: JSON.stringify(book),
     });
   },
+  async deleteBook(id: string): Promise<{ message: string }> {
+    return apiRequest(`/books/${id}`, { method: 'DELETE' });
+  },
 
   async requestBook(id: string, dueDate: string): Promise<any> {
     return apiRequest(`/books/${id}/request`, {
@@ -226,6 +232,9 @@ export const cyclesApi = {
       method: 'POST',
       body: JSON.stringify(cycle),
     });
+  },
+  async deleteCycle(id: string): Promise<{ message: string }> {
+    return apiRequest(`/cycles/${id}`, { method: 'DELETE' });
   },
 
   async getMyCycles(): Promise<any[]> {
@@ -326,6 +335,9 @@ export const lostFoundApi = {
       method: 'POST',
       body: JSON.stringify(item),
     });
+  },
+  async deleteItem(id: string): Promise<{ message: string }> {
+    return apiRequest(`/lostfound/${id}`, { method: 'DELETE' });
   },
 
   async resolveItem(id: string): Promise<any> {

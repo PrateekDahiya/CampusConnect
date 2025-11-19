@@ -4,6 +4,7 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import FormField from "../components/FormField";
 import StatusBadge from "../components/StatusBadge";
+import { useUiStore } from "../stores/useUiStore";
 
 export default function LendCycle() {
     const {
@@ -46,6 +47,7 @@ export default function LendCycle() {
     const [hourlyRate, setHourlyRate] = useState<string>("0");
     const [dailyRate, setDailyRate] = useState<string>("0");
     const [hostel, setHostel] = useState("");
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (user) {
@@ -64,6 +66,16 @@ export default function LendCycle() {
     };
 
     const onCreateListing = async () => {
+        const nextErrors: Record<string, string> = {};
+        if (!name.trim())
+            nextErrors.name = "Please provide a name for the cycle.";
+        if (!hostel.trim())
+            nextErrors.hostel =
+                "Please provide the hostel/location for the cycle.";
+        if (Object.keys(nextErrors).length) {
+            setErrors(nextErrors);
+            return;
+        }
         try {
             await createCycle({
                 name,
@@ -77,10 +89,11 @@ export default function LendCycle() {
             setHourlyRate("0");
             setDailyRate("0");
             setHostel("");
+            setErrors({});
             setShowCreateForm(false);
             await loadCycles();
         } catch (e: any) {
-            alert(e.message || "Create failed");
+            useUiStore.getState().notify(e.message || "Create failed", "error");
         }
     };
 
@@ -93,7 +106,9 @@ export default function LendCycle() {
             await getMyBookings();
             await loadCycles();
         } catch (e: any) {
-            alert(e.message || "Booking failed");
+            useUiStore
+                .getState()
+                .notify(e.message || "Booking failed", "error");
         } finally {
             setLoading(false);
         }
@@ -106,7 +121,7 @@ export default function LendCycle() {
             await getMyBookings();
             await loadCycles();
         } catch (e: any) {
-            alert(e.message || "Return failed");
+            useUiStore.getState().notify(e.message || "Return failed", "error");
         } finally {
             setLoading(false);
         }
@@ -189,12 +204,22 @@ export default function LendCycle() {
                                         <FormField label="Cycle Name">
                                             <input
                                                 value={name}
-                                                onChange={(e) =>
-                                                    setName(e.target.value)
-                                                }
+                                                onChange={(e) => {
+                                                    setName(e.target.value);
+                                                    if (errors.name)
+                                                        setErrors((s) => ({
+                                                            ...s,
+                                                            name: "",
+                                                        }));
+                                                }}
                                                 placeholder="Cycle Name"
                                                 className="border rounded px-3 py-2"
                                             />
+                                            {errors.name && (
+                                                <div className="text-red-600 text-sm mt-1">
+                                                    {errors.name}
+                                                </div>
+                                            )}
                                         </FormField>
                                         <FormField label="Model (optional)">
                                             <input
@@ -233,12 +258,22 @@ export default function LendCycle() {
                                         <FormField label="Hostel Name">
                                             <input
                                                 value={hostel}
-                                                onChange={(e) =>
-                                                    setHostel(e.target.value)
-                                                }
+                                                onChange={(e) => {
+                                                    setHostel(e.target.value);
+                                                    if (errors.hostel)
+                                                        setErrors((s) => ({
+                                                            ...s,
+                                                            hostel: "",
+                                                        }));
+                                                }}
                                                 placeholder="Hostel Name"
                                                 className="border rounded px-3 py-2 md:col-span-2"
                                             />
+                                            {errors.hostel && (
+                                                <div className="text-red-600 text-sm mt-1">
+                                                    {errors.hostel}
+                                                </div>
+                                            )}
                                         </FormField>
                                     </div>
                                     <div className="mt-4 flex gap-2">
@@ -310,6 +345,36 @@ export default function LendCycle() {
                                     ) : (
                                         cycles.map((c: any) => (
                                             <Card key={c._id} className="">
+                                                {/* Cycle image (first image from array) */}
+                                                {(() => {
+                                                    const firstImg =
+                                                        Array.isArray(c.image)
+                                                            ? c.image[0]
+                                                            : Array.isArray(
+                                                                  c.images
+                                                              )
+                                                            ? c.images[0]
+                                                            : typeof c.image ===
+                                                              "string"
+                                                            ? c.image
+                                                            : null;
+                                                    return firstImg ? (
+                                                        <img
+                                                            src={firstImg}
+                                                            alt={
+                                                                c.name ||
+                                                                "Cycle"
+                                                            }
+                                                            className="w-full h-40 object-cover rounded mb-3"
+                                                            onError={(e) => {
+                                                                (
+                                                                    e.target as HTMLImageElement
+                                                                ).style.display =
+                                                                    "none";
+                                                            }}
+                                                        />
+                                                    ) : null;
+                                                })()}
                                                 <div className="flex justify-between items-center">
                                                     <div>
                                                         <div className="font-semibold text-slate-800">
@@ -376,6 +441,53 @@ export default function LendCycle() {
                                                     ) : (
                                                         <div className="text-xs text-slate-500">
                                                             Not available
+                                                        </div>
+                                                    )}
+                                                    {/* Admin or owner delete */}
+                                                    {(user?.role === "admin" ||
+                                                        c.owner ===
+                                                            user?._id) && (
+                                                        <div className="mt-2">
+                                                            <Button
+                                                                variant="danger"
+                                                                className="text-sm"
+                                                                onClick={async () => {
+                                                                    const ok =
+                                                                        await useUiStore
+                                                                            .getState()
+                                                                            .confirmDialog(
+                                                                                "Delete this cycle listing?"
+                                                                            );
+                                                                    if (!ok)
+                                                                        return;
+                                                                    try {
+                                                                        await useAppStore
+                                                                            .getState()
+                                                                            .deleteCycle(
+                                                                                c._id ||
+                                                                                    c.id
+                                                                            );
+                                                                        useUiStore
+                                                                            .getState()
+                                                                            .notify(
+                                                                                "Cycle deleted",
+                                                                                "success"
+                                                                            );
+                                                                        await loadCycles();
+                                                                    } catch (err: any) {
+                                                                        useUiStore
+                                                                            .getState()
+                                                                            .notify(
+                                                                                "Failed to delete cycle: " +
+                                                                                    (err?.message ||
+                                                                                        err),
+                                                                                "error"
+                                                                            );
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Delete
+                                                            </Button>
                                                         </div>
                                                     )}
                                                 </div>
@@ -451,14 +563,20 @@ export default function LendCycle() {
                                                             );
                                                             await getMyBookings();
                                                             await getPendingRequests();
-                                                            alert(
-                                                                "Booking request cancelled"
-                                                            );
+                                                            useUiStore
+                                                                .getState()
+                                                                .notify(
+                                                                    "Booking request cancelled",
+                                                                    "success"
+                                                                );
                                                         } catch (err: any) {
-                                                            alert(
-                                                                err.message ||
-                                                                    "Failed to cancel booking"
-                                                            );
+                                                            useUiStore
+                                                                .getState()
+                                                                .notify(
+                                                                    err.message ||
+                                                                        "Failed to cancel booking",
+                                                                    "error"
+                                                                );
                                                         }
                                                     }}
                                                 >
@@ -544,15 +662,21 @@ export default function LendCycle() {
                                                                     )
                                                                 ) {
                                                                     await getMyBookings();
-                                                                    alert(
-                                                                        "Booking request cancelled"
-                                                                    );
+                                                                    useUiStore
+                                                                        .getState()
+                                                                        .notify(
+                                                                            "Booking request cancelled",
+                                                                            "success"
+                                                                        );
                                                                     return;
                                                                 }
-                                                                alert(
-                                                                    err.message ||
-                                                                        "Failed to cancel booking"
-                                                                );
+                                                                useUiStore
+                                                                    .getState()
+                                                                    .notify(
+                                                                        err.message ||
+                                                                            "Failed to cancel booking",
+                                                                        "error"
+                                                                    );
                                                             }
                                                         }}
                                                     >

@@ -17,5 +17,7 @@ router.get("/:id/matches", auth, lostFoundController.findMatches);
 router.post("/:id/claim", auth, lostFoundController.claimItem);
 // Approve/reject a claim
 router.put("/:id/claim/:claimId", auth, lostFoundController.approveClaim);
+// Delete a lost/found item
+router.delete("/:id", auth, lostFoundController.deleteItem);
 
 module.exports = router;

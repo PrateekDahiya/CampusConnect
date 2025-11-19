@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "../stores/useStore";
 import { useAppStore } from "../stores/useAppStore";
 import Button from "../components/Button";
+import { useUiStore } from "../stores/useUiStore";
 
 function StatCard({ title, value }: { title: string; value: string | number }) {
     return (
@@ -55,7 +56,7 @@ function Sparkline({
 
 function Donut({
     values,
-    labels,
+    labels: _labels,
     size = 120,
 }: {
     values: number[];
@@ -121,7 +122,7 @@ export default function Admin() {
     } = useStore();
     const { user } = useAppStore();
 
-    const [loading, setLoading] = useState(false);
+    const [, setLoading] = useState(false);
     const [users, setUsers] = useState<any[]>([]);
 
     useEffect(() => {
@@ -310,21 +311,34 @@ export default function Admin() {
                                         variant="primary"
                                         className="btn-sm"
                                         onClick={async () => {
-                                            if (!confirm("Approve this claim?"))
-                                                return;
+                                            const ok = await useUiStore
+                                                .getState()
+                                                .confirmDialog(
+                                                    "Approve this claim?"
+                                                );
+                                            if (!ok) return;
                                             try {
                                                 await approveClaim(
                                                     i.id,
                                                     (i as any).claim.id,
                                                     true
                                                 );
-                                                alert("Claim approved");
+                                                useUiStore
+                                                    .getState()
+                                                    .notify(
+                                                        "Claim approved",
+                                                        "success"
+                                                    );
                                                 await loadLostFound();
                                             } catch (err: any) {
-                                                alert(
-                                                    "Failed to approve claim: " +
-                                                        (err?.message || err)
-                                                );
+                                                useUiStore
+                                                    .getState()
+                                                    .notify(
+                                                        "Failed to approve claim: " +
+                                                            (err?.message ||
+                                                                err),
+                                                        "error"
+                                                    );
                                             }
                                         }}
                                     >
@@ -334,21 +348,34 @@ export default function Admin() {
                                         variant="danger"
                                         className="btn-sm"
                                         onClick={async () => {
-                                            if (!confirm("Reject this claim?"))
-                                                return;
+                                            const ok = await useUiStore
+                                                .getState()
+                                                .confirmDialog(
+                                                    "Reject this claim?"
+                                                );
+                                            if (!ok) return;
                                             try {
                                                 await approveClaim(
                                                     i.id,
                                                     (i as any).claim.id,
                                                     false
                                                 );
-                                                alert("Claim rejected");
+                                                useUiStore
+                                                    .getState()
+                                                    .notify(
+                                                        "Claim rejected",
+                                                        "success"
+                                                    );
                                                 await loadLostFound();
                                             } catch (err: any) {
-                                                alert(
-                                                    "Failed to reject claim: " +
-                                                        (err?.message || err)
-                                                );
+                                                useUiStore
+                                                    .getState()
+                                                    .notify(
+                                                        "Failed to reject claim: " +
+                                                            (err?.message ||
+                                                                err),
+                                                        "error"
+                                                    );
                                             }
                                         }}
                                     >

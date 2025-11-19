@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function StatusBadge({ status }: { status: string }) {
     const base = "px-3 py-1 rounded-full text-xs font-semibold";
     const s = (status || "").toString();

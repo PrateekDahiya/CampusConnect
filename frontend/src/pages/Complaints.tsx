@@ -5,6 +5,7 @@ import Card from "../components/Card";
 import StatusBadge from "../components/StatusBadge";
 import Badge from "../components/Badge";
 import FormField from "../components/FormField";
+import { useUiStore } from "../stores/useUiStore";
 
 export default function Complaints() {
     // Use the new backend-connected store for complaints
@@ -17,6 +18,7 @@ export default function Complaints() {
         complaintsLoading,
         addRemark,
         assignStaff,
+        deleteComplaint,
     } = useAppStore();
 
     // Role-based access control helpers
@@ -32,6 +34,7 @@ export default function Complaints() {
     const [roomNumber, setRoomNumber] = useState("");
     const [description, setDescription] = useState("");
     const [image, setImage] = useState<string | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const fileRef = useRef<HTMLInputElement | null>(null);
     const loadedRef = useRef(false);
     const [query, setQuery] = useState("");
@@ -75,7 +78,14 @@ export default function Complaints() {
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!description.trim()) return;
+        const nextErrors: Record<string, string> = {};
+        if (!description.trim())
+            nextErrors.description =
+                "Please provide a description for the complaint.";
+        if (Object.keys(nextErrors).length) {
+            setErrors(nextErrors);
+            return;
+        }
 
         try {
             // Backend API only supports title, description, and hostel
@@ -201,13 +211,23 @@ export default function Complaints() {
                             <FormField label="Description">
                                 <textarea
                                     value={description}
-                                    onChange={(e) =>
-                                        setDescription(e.target.value)
-                                    }
+                                    onChange={(e) => {
+                                        setDescription(e.target.value);
+                                        if (errors.description)
+                                            setErrors((s) => ({
+                                                ...s,
+                                                description: "",
+                                            }));
+                                    }}
                                     rows={6}
                                     className="w-full border rounded p-3 mt-1"
                                     placeholder="Describe the issue in detail..."
                                 />
+                                {errors.description && (
+                                    <div className="text-red-600 text-sm mt-1">
+                                        {errors.description}
+                                    </div>
+                                )}
                             </FormField>
                         </div>
 
@@ -418,13 +438,19 @@ export default function Complaints() {
                                                                     c.id,
                                                                     "Resolved"
                                                                 );
-                                                                alert(
-                                                                    "Complaint marked as resolved"
-                                                                );
+                                                                useUiStore
+                                                                    .getState()
+                                                                    .notify(
+                                                                        "Complaint marked as resolved",
+                                                                        "success"
+                                                                    );
                                                             } catch (error) {
-                                                                alert(
-                                                                    "Failed to update status. Please try again."
-                                                                );
+                                                                useUiStore
+                                                                    .getState()
+                                                                    .notify(
+                                                                        "Failed to update status. Please try again.",
+                                                                        "error"
+                                                                    );
                                                             }
                                                         }}
                                                     >
@@ -441,13 +467,19 @@ export default function Complaints() {
                                                                     c.id,
                                                                     "In Progress"
                                                                 );
-                                                                alert(
-                                                                    "Complaint moved to In Progress"
-                                                                );
+                                                                useUiStore
+                                                                    .getState()
+                                                                    .notify(
+                                                                        "Complaint moved to In Progress",
+                                                                        "success"
+                                                                    );
                                                             } catch (error) {
-                                                                alert(
-                                                                    "Failed to update status. Please try again."
-                                                                );
+                                                                useUiStore
+                                                                    .getState()
+                                                                    .notify(
+                                                                        "Failed to update status. Please try again.",
+                                                                        "error"
+                                                                    );
                                                             }
                                                         }}
                                                     >
@@ -458,53 +490,68 @@ export default function Complaints() {
                                                     variant="danger"
                                                     className="w-full btn-sm"
                                                     onClick={async () => {
-                                                        if (
-                                                            confirm(
-                                                                "Are you sure you want to reject this complaint?"
-                                                            )
-                                                        ) {
-                                                            try {
-                                                                await updateStatus(
-                                                                    c.id,
-                                                                    "Rejected"
+                                                        const ok =
+                                                            await useUiStore
+                                                                .getState()
+                                                                .confirmDialog(
+                                                                    "Are you sure you want to reject this complaint?"
                                                                 );
-                                                                alert(
-                                                                    "Complaint rejected"
+                                                        if (!ok) return;
+                                                        try {
+                                                            await updateStatus(
+                                                                c.id,
+                                                                "Rejected"
+                                                            );
+                                                            useUiStore
+                                                                .getState()
+                                                                .notify(
+                                                                    "Complaint rejected",
+                                                                    "success"
                                                                 );
-                                                            } catch (error) {
-                                                                alert(
-                                                                    "Failed to update status. Please try again."
+                                                        } catch (error) {
+                                                            useUiStore
+                                                                .getState()
+                                                                .notify(
+                                                                    "Failed to update status. Please try again.",
+                                                                    "error"
                                                                 );
-                                                            }
                                                         }
                                                     }}
                                                 >
                                                     Reject
                                                 </Button>
 
-                                                <div className="flex gap-2 mt-3">
+                                                <div className="flex flex-wrap gap-2 mt-3 justify-end">
                                                     {canManageComplaints && (
                                                         <Button
                                                             variant="ghost"
-                                                            className="btn-sm"
+                                                            className="btn-sm whitespace-nowrap"
                                                             onClick={async () => {
                                                                 const text =
-                                                                    prompt(
-                                                                        "Add remark"
-                                                                    );
+                                                                    await useUiStore
+                                                                        .getState()
+                                                                        .promptDialog(
+                                                                            "Add remark"
+                                                                        );
                                                                 if (text) {
                                                                     try {
                                                                         await addRemark(
                                                                             c.id,
                                                                             text
                                                                         );
-                                                                        alert(
-                                                                            "Remark added successfully"
-                                                                        );
+                                                                        useUiStore
+                                                                            .getState()
+                                                                            .notify(
+                                                                                "Remark added successfully",
+                                                                                "success"
+                                                                            );
                                                                     } catch (error) {
-                                                                        alert(
-                                                                            "Failed to add remark. Please try again."
-                                                                        );
+                                                                        useUiStore
+                                                                            .getState()
+                                                                            .notify(
+                                                                                "Failed to add remark. Please try again.",
+                                                                                "error"
+                                                                            );
                                                                     }
                                                                 }
                                                             }}
@@ -515,30 +562,75 @@ export default function Complaints() {
                                                     {canAssignStaff && (
                                                         <Button
                                                             variant="ghost"
-                                                            className="btn-sm"
+                                                            className="btn-sm whitespace-nowrap"
                                                             onClick={async () => {
                                                                 const staff =
-                                                                    prompt(
-                                                                        "Enter staff user ID to assign"
-                                                                    );
+                                                                    await useUiStore
+                                                                        .getState()
+                                                                        .promptDialog(
+                                                                            "Enter staff user ID to assign"
+                                                                        );
                                                                 if (staff) {
                                                                     try {
                                                                         await assignStaff(
                                                                             c.id,
                                                                             staff
                                                                         );
-                                                                        alert(
-                                                                            "Staff assigned successfully"
-                                                                        );
+                                                                        useUiStore
+                                                                            .getState()
+                                                                            .notify(
+                                                                                "Staff assigned successfully",
+                                                                                "success"
+                                                                            );
                                                                     } catch (error) {
-                                                                        alert(
-                                                                            "Failed to assign staff. Please check the user ID and try again."
-                                                                        );
+                                                                        useUiStore
+                                                                            .getState()
+                                                                            .notify(
+                                                                                "Failed to assign staff. Please check the user ID and try again.",
+                                                                                "error"
+                                                                            );
                                                                     }
                                                                 }
                                                             }}
                                                         >
                                                             Assign
+                                                        </Button>
+                                                    )}
+                                                    {isAdmin && (
+                                                        <Button
+                                                            variant="danger"
+                                                            className="btn-sm whitespace-nowrap"
+                                                            onClick={async () => {
+                                                                const ok =
+                                                                    await useUiStore
+                                                                        .getState()
+                                                                        .confirmDialog(
+                                                                            "Delete this complaint?"
+                                                                        );
+                                                                if (!ok) return;
+                                                                try {
+                                                                    await deleteComplaint(
+                                                                        c.id
+                                                                    );
+                                                                    useUiStore
+                                                                        .getState()
+                                                                        .notify(
+                                                                            "Complaint deleted",
+                                                                            "success"
+                                                                        );
+                                                                } catch (err: any) {
+                                                                    useUiStore
+                                                                        .getState()
+                                                                        .notify(
+                                                                            "Failed to delete complaint: " +
+                                                                                (err?.message ||
+                                                                                    err),
+                                                                            "error"
+                                                                        );
+                                                                }
+                                                            }}
+                                                        >
+                                                            Delete
                                                         </Button>
                                                     )}
                                                 </div>

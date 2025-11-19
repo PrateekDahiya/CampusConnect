@@ -11,5 +11,6 @@ router.get("/hostel/:hostel", auth, complaintController.getComplaintsByHostel);
 router.put("/:id/status", auth, complaintController.updateComplaintStatus);
 router.post("/:id/remarks", auth, complaintController.addRemark);
 router.put("/:id/assign", auth, complaintController.assignStaff);
+router.delete("/:id", auth, complaintController.deleteComplaint);
 
 module.exports = router;

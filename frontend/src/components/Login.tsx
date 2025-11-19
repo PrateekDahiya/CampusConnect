@@ -10,13 +10,29 @@ export default function Login() {
         name: "",
         email: "",
         password: "",
-        role: "student" as "student" | "staff" | "admin",
+        role: "student" as "student" | "staff",
     });
     const [error, setError] = useState("");
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setErrors({});
+
+        // Client-side validation
+        const nextErrors: Record<string, string> = {};
+        if (!formData.email.trim())
+            nextErrors.email = "Please enter your email.";
+        if (!formData.password.trim())
+            nextErrors.password = "Please enter your password.";
+        if (!isLoginMode && !formData.name.trim())
+            nextErrors.name = "Please enter your full name.";
+        if (Object.keys(nextErrors).length) {
+            setErrors(nextErrors);
+            return;
+        }
 
         try {
             if (isLoginMode) {
@@ -30,9 +46,20 @@ export default function Login() {
                 });
             }
         } catch (err) {
-            setError(
-                err instanceof Error ? err.message : "Authentication failed"
-            );
+            const msg =
+                err instanceof Error ? err.message : "Authentication failed";
+            setError(msg);
+            // If backend returned field errors, show them inline
+            const anyErr = err as any;
+            if (anyErr && anyErr.responseData && anyErr.responseData.errors) {
+                const fieldErrors: Record<string, string> = {};
+                Object.entries(anyErr.responseData.errors).forEach(
+                    ([k, v]: any) => {
+                        fieldErrors[k] = v?.message || String(v);
+                    }
+                );
+                setErrors(fieldErrors);
+            }
         }
     };
 
@@ -82,9 +109,21 @@ export default function Login() {
                                     required={!isLoginMode}
                                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                     value={formData.name}
-                                    onChange={handleInputChange}
+                                    onChange={(e) => {
+                                        handleInputChange(e as any);
+                                        if (errors.name)
+                                            setErrors((s) => ({
+                                                ...s,
+                                                name: "",
+                                            }));
+                                    }}
                                     placeholder="Enter your full name"
                                 />
+                                {errors.name && (
+                                    <div className="text-red-600 text-sm mt-1">
+                                        {errors.name}
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -102,9 +141,18 @@ export default function Login() {
                                 required
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                 value={formData.email}
-                                onChange={handleInputChange}
+                                onChange={(e) => {
+                                    handleInputChange(e as any);
+                                    if (errors.email)
+                                        setErrors((s) => ({ ...s, email: "" }));
+                                }}
                                 placeholder="Enter your email"
                             />
+                            {errors.email && (
+                                <div className="text-red-600 text-sm mt-1">
+                                    {errors.email}
+                                </div>
+                            )}
                         </div>
 
                         <div>
@@ -117,13 +165,38 @@ export default function Login() {
                             <input
                                 id="password"
                                 name="password"
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 required
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                 value={formData.password}
-                                onChange={handleInputChange}
+                                onChange={(e) => {
+                                    handleInputChange(e as any);
+                                    if (errors.password)
+                                        setErrors((s) => ({
+                                            ...s,
+                                            password: "",
+                                        }));
+                                }}
                                 placeholder="Enter your password"
                             />
+                            <div className="mt-1 text-xs flex items-center justify-between">
+                                <label className="flex items-center gap-2 text-slate-600">
+                                    <input
+                                        type="checkbox"
+                                        className="inline-block"
+                                        checked={showPassword}
+                                        onChange={() =>
+                                            setShowPassword((s) => !s)
+                                        }
+                                    />
+                                    <span>Show password</span>
+                                </label>
+                                {errors.password && (
+                                    <div className="text-red-600">
+                                        {errors.password}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {!isLoginMode && (
@@ -143,7 +216,6 @@ export default function Login() {
                                 >
                                     <option value="student">Student</option>
                                     <option value="staff">Staff</option>
-                                    <option value="admin">Admin</option>
                                 </select>
                             </div>
                         )}
@@ -181,6 +253,7 @@ export default function Login() {
                                         password: "",
                                         role: "student",
                                     });
+                                    setErrors({});
                                 }}
                             >
                                 {isLoginMode
@@ -190,25 +263,11 @@ export default function Login() {
                         </div>
                     </form>
                 </Card>
-
                 <div className="mt-8">
                     <Card>
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                            Demo Accounts
-                        </h3>
-                        <div className="space-y-2 text-sm">
-                            <div>
-                                <strong>Student:</strong>{" "}
-                                dahiyaprateek@gmail.com / 123456
-                            </div>
-                            <div>
-                                <strong>Staff:</strong> dahiya2@gmail.com /
-                                123456
-                            </div>
-                            <div>
-                                <strong>Admin:</strong> dahiya@gmail.com /
-                                123456
-                            </div>
+                        <div className="text-sm text-slate-600">
+                            Need help? Use your campus email to register. If you
+                            have issues signing in, contact the admin.
                         </div>
                     </Card>
                 </div>

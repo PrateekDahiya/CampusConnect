@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useStore } from "../stores/useStore";
 import { useAppStore } from "../stores/useAppStore";
-import Button from "../components/Button";
+// Button not used in this view
 import Card from "../components/Card";
 import { Link } from "react-router-dom";
 
@@ -368,7 +368,6 @@ export default function Dashboard() {
                     </div>
                 </section>
             )}
-            
 
             {/* Recent Activities */}
             <section>

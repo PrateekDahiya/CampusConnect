@@ -12,10 +12,12 @@ type State = {
   addRemark: (id: string, text: string, by?: string) => Promise<void>
   assignStaff: (id: string, staffId: string) => Promise<void>
   setSatisfaction: (id: string, satisfied: 'yes' | 'no') => Promise<void>
+  deleteComplaint: (id: string) => Promise<void>
   // cycles
   cycles: Cycle[]
   loadCycles: (filter?: { status?: Cycle['status']; location?: string }) => Promise<void>
   createListing: (p: Partial<Cycle> & { owner?: string }) => Promise<Cycle>
+  deleteCycle: (id: string) => Promise<void>
   requestCycle: (p: { cycleId: string; requesterId: string; message?: string; startTime?: string; expectedReturnTime?: string }) => Promise<any>
   respondCycleRequest: (requestId: string, accept: boolean) => Promise<any>
   markCycleReturned: (cycleId: string) => Promise<any>
@@ -27,6 +29,7 @@ type State = {
   lostFound: LostItem[]
   loadLostFound: () => Promise<void>
   addLostItem: (p: { type: 'lost' | 'found'; title: string; category?: string; description?: string; location?: string; images?: string[] }) => Promise<void>
+  deleteLostItem: (id: string) => Promise<void>
   markFound: (id: string) => Promise<void>
   queryLostFound: (opts?: { category?: string; type?: 'lost' | 'found'; q?: string; sort?: 'newest' | 'oldest' }) => Promise<void>
   findMatches: (id: string) => Promise<LostItem[]>
@@ -39,6 +42,7 @@ type State = {
   respondBookRequest: (requestId: string, accept: boolean) => Promise<any>
   markBookReturned: (bookId: string) => Promise<Book | null>
   books: Book[]
+  deleteBook: (id: string) => Promise<void>
 }
 
 export const useStore = create<State>((set: any, get: any) => ({
@@ -110,6 +114,14 @@ export const useStore = create<State>((set: any, get: any) => ({
     await get().loadComplaints()
     return remark
   },
+  deleteComplaint: async (id: string) => {
+    try {
+      await realApi.complaints.deleteComplaint(id);
+      set((s: State) => ({ complaints: s.complaints.filter((c) => c.id !== id) }));
+    } catch (e) {
+      throw e;
+    }
+  },
   assignStaff: async (id: string, staffId: string) => {
     await api.assignComplaintStaff(id, staffId)
     await get().loadComplaints()
@@ -125,6 +137,15 @@ export const useStore = create<State>((set: any, get: any) => ({
     const created = await realApi.cycles.createCycle(p as any)
     await get().loadCycles()
     return created
+  },
+  deleteCycle: async (id: string) => {
+    try {
+      await realApi.cycles.deleteCycle(id);
+      // remove from cycles cache
+      set((s: State) => ({ cycles: s.cycles.filter((c: any) => (c._id || c.id) !== id) }));
+    } catch (e) {
+      throw e;
+    }
   },
   requestCycle: async (p) => {
     await api.requestCycle(p)
@@ -173,6 +194,14 @@ export const useStore = create<State>((set: any, get: any) => ({
       throw e
     }
   },
+  deleteLostItem: async (id: string) => {
+    try {
+      await realApi.lostFound.deleteItem(id);
+      set((s: State) => ({ lostFound: s.lostFound.filter((i: any) => ((i.id || i._id) !== id)) }));
+    } catch (e) {
+      throw e;
+    }
+  },
   markFound: async (id) => {
     const prev = get().lostFound
     set((s: State) => ({ lostFound: s.lostFound.map((i) => (i.id === id ? { ...i, found: true } : i)) }))
@@ -192,6 +221,14 @@ export const useStore = create<State>((set: any, get: any) => ({
   },
   // books
   books: [] as Book[],
+  deleteBook: async (id: string) => {
+    try {
+      await realApi.books.deleteBook(id);
+      set((s: State) => ({ books: s.books.filter((b: any) => ((b.id || (b._id as any)) !== id)) }));
+    } catch (e) {
+      throw e;
+    }
+  },
   findMatches: async (id) => {
   if (!id) throw new Error('Invalid id')
   const matches = await realApi.lostFound.findMatches(id)
