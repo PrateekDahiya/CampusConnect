@@ -1,68 +1,154 @@
+@import "tailwindcss";
+
+/* Theme variables provided by the user */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    /* Backgrounds */
+    --bg-dark: hsl(220 59% 91%);
+    --bg: hsl(220 100% 97%);
+    --bg-light: hsl(220 100% 100%);
+    --overlay: hsla(220, 10%, 60%, 0.5); /* Text */
+    --text: hsl(226 85% 7%);
+    --text-muted: hsl(220 26% 31%);
+    --highlight: hsl(220 100% 100%);
+    --link: hsl(220 60% 40%);
+    --link-hover: hsl(220 60% 55%); /* Borders */
+    --border: hsl(220 19% 53%);
+    --border-muted: hsl(220 27% 65%);
+    --focus-ring: hsl(220 40% 40%); /* Primary UI Colors */
+    --primary: hsl(221 49% 33%);
+    --secondary: hsl(44 100% 14%);
+    --danger: hsl(9 21% 41%);
+    --warning: hsl(52 23% 34%);
+    --success: hsl(147 19% 36%);
+    --info: hsl(217 22% 41%); /* Inputs */
+    --input-bg: var(--bg-light);
+    --input-border: var(--border-muted);
+    --input-placeholder: var(--text-muted); /* Shadows */
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    --shadow-elevated: 0 10px 15px rgba(0, 0, 0, 0.08); /* Code Highlighting */
+    --code-bg: hsl(220 90% 98%);
+    --code-text: hsl(226 50% 20%);
+    --code-comment: hsl(220 10% 50%);
+    --code-keyword: hsl(286 60% 45%);
+    --code-function: hsl(200 60% 40%); /* Buttons */
+    --btn-bg: var(--primary);
+    --btn-text: hsl(220 100% 98%);
+    --btn-hover-bg: hsl(221 49% 43%);
+    --btn-hover-text: hsl(220 100% 98%);
+} /* ✅ Dark theme override */
+.dark {
+    --bg-dark: hsl(228 79% 2%);
+    --bg: hsl(222 55% 5%);
+    --bg-light: hsl(220 35% 10%);
+    --overlay: hsla(220, 20%, 10%, 0.6);
+    --text: hsl(220 100% 98%);
+    --text-muted: hsl(220 35% 73%);
+    --highlight: hsl(220 20% 42%);
+    --link: hsl(220 90% 65%);
+    --link-hover: hsl(220 100% 75%);
+    --border: hsl(220 26% 31%);
+    --border-muted: hsl(220 37% 20%);
+    --focus-ring: hsl(220 90% 70%);
+    --primary: hsl(220 78% 76%);
+    --secondary: hsl(40 53% 60%);
+    --danger: hsl(9 26% 64%);
+    --warning: hsl(52 19% 57%);
+    --success: hsl(146 17% 59%);
+    --info: hsl(217 28% 65%);
+    --input-bg: var(--bg-light);
+    --input-border: var(--border-muted);
+    --input-placeholder: var(--text-muted);
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-elevated: 0 10px 15px rgba(0, 0, 0, 0.15);
+    --code-bg: hsl(220 10% 10%);
+    --code-text: hsl(220 80% 85%);
+    --code-comment: hsl(220 20% 60%);
+    --code-keyword: hsl(286 60% 70%);
+    --code-function: hsl(200 60% 70%);
+    --btn-bg: var(--primary);
+    --btn-text: hsl(220 100% 10%);
+    --btn-hover-bg: hsl(220 78% 86%);
+    --btn-hover-text: hsl(220 100% 10%);
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+/* Minimal element styles that use theme variables */
+html,
+body,
+#root {
+    height: 100%;
 }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+    margin: 0;
+    background-color: var(--bg-light);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+a {
+    color: var(--link);
+}
+a:hover {
+    color: var(--link-hover);
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
+    background-color: var(--btn-bg);
+    color: var(--btn-text);
+    border: 1px solid transparent;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
 }
 button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+    background-color: var(--btn-hover-bg);
+    color: var(--btn-hover-text);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+input,
+textarea,
+select {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text);
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+}
+input::placeholder,
+textarea::placeholder {
+    color: var(--input-placeholder);
+}
+
+/* Utility-ish element styling for cards */
+.card {
+    background: var(--bg-dark);
+    background-color: var(--bg);
+    color: var(--text);
+    box-shadow: var(--shadow);
+}
+
+/* Hide scrollbars globally (cross-browser)
+   - Firefox: scrollbar-width
+   - IE/Edge: -ms-overflow-style
+   - WebKit (Chrome, Safari): ::-webkit-scrollbar width/height 0
+   NOTE: scroll behavior remains; this only hides the scrollbar visuals. */
+html,
+body,
+#root {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE 10+ */
+}
+
+/* WebKit browsers */
+*::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+}
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+    background: transparent;
 }
