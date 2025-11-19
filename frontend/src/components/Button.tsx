@@ -21,11 +21,12 @@ export default function Button(props: ButtonAsButton | ButtonAsAnchor) {
         ...rest
     } = props as any;
     const base =
-        "inline-flex items-center justify-center rounded px-3 py-1.5 text-sm font-medium";
+        "inline-flex items-center justify-center rounded px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2";
     const variants: Record<Variant, string> = {
-        primary: "btn btn-primary",
-        secondary: "btn btn-outline",
-        ghost: "btn btn-ghost",
+        primary: "bg-sky-600 text-white hover:bg-sky-700 focus:ring-sky-500",
+        secondary:
+            "border border-sky-600 text-sky-600 hover:bg-sky-50 focus:ring-sky-500",
+        ghost: "text-slate-700 hover:bg-slate-100",
         danger: "bg-red-600 text-white hover:bg-red-700",
     };
 
