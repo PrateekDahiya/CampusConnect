@@ -1,13 +1,26 @@
 const Complaint = require('../models/Complaint');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
 
 // Create a new complaint
 exports.createComplaint = async (req, res) => {
   const { title, description, hostel } = req.body;
   try {
+    const images = [];
+
+    if (req.files) {
+      for (const file of req.files) {
+        const result = await cloudinary.uploader.upload(file.path);
+        images.push(result.secure_url);
+        fs.unlinkSync(file.path); // Clean up temporary file
+      }
+    }
+
     const complaint = new Complaint({
       title,
       description,
       hostel,
+      images,
       createdBy: req.user.userId // assuming userId is set in req.user by auth middleware
     });
     await complaint.save();
