@@ -51,6 +51,7 @@ export type MockDb = {
   bookings: Booking[]
   cycleRequests?: CycleRequest[]
   lostFound?: LostItem[]
+  books?: Book[]
 }
 
 export const mockDb: MockDb = {
@@ -107,6 +108,34 @@ export type LostItem = {
   found?: boolean
   reportedBy?: string
   createdAt: string
+  claim?: {
+    id: string
+    userId: string
+    proof?: string
+    status: 'pending' | 'approved' | 'rejected'
+    createdAt: string
+    approvedBy?: string
+  }
+}
+
+export type Book = {
+  id: string
+  title: string
+  author?: string
+  edition?: string
+  condition?: string
+  category?: string
+  isbn?: string
+  price?: number
+  rent?: number
+  type?: 'sell' | 'rent' | 'free'
+  description?: string
+  photo?: string
+  location?: string
+  owner?: string
+  status?: 'available' | 'lent' | 'sold'
+  isApproved?: boolean
+  createdAt: string
 }
 
 const initialLost: LostItem[] = [
@@ -123,6 +152,101 @@ const initialLost: LostItem[] = [
 ]
 
 mockDb['lostFound'] = [...initialLost]
+
+const initialBooks: Book[] = [
+  {
+    id: 'b1',
+    title: 'Introduction to Computer Science',
+    author: 'David S. Malik',
+    edition: '8th Edition',
+    condition: 'used',
+    category: 'Computer Science',
+    isbn: '978-1337102087',
+    price: 150,
+    type: 'sell',
+    description: 'Well-maintained textbook for CS fundamentals course. Minimal highlighting.',
+    photo: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400&h=500&fit=crop',
+    location: 'Hostel A',
+    owner: 'user1',
+    status: 'available',
+    isApproved: true,
+    createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+  },
+  {
+    id: 'b2',
+    title: 'Calculus: Early Transcendentals',
+    author: 'James Stewart',
+    edition: '9th Edition',
+    condition: 'new',
+    category: 'Mathematics',
+    isbn: '978-1337613927',
+    rent: 25,
+    type: 'rent',
+    description: 'Brand new calculus textbook. Available for rent per week.',
+    photo: 'https://images.unsplash.com/photo-1509266272358-7701da638078?w=400&h=500&fit=crop',
+    location: 'Main Campus',
+    owner: 'user2',
+    status: 'available',
+    isApproved: true,
+    createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+  },
+  {
+    id: 'b3',
+    title: 'Data Structures and Algorithms',
+    author: 'Robert Lafore',
+    edition: '2nd Edition',
+    condition: 'fair',
+    category: 'Computer Science',
+    isbn: '978-0672324703',
+    price: 80,
+    type: 'sell',
+    description: 'Good for learning DSA concepts. Some pages have notes.',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop',
+    location: 'Library Block',
+    owner: 'user3',
+    status: 'available',
+    isApproved: true,
+    createdAt: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
+  },
+  {
+    id: 'b4',
+    title: 'Organic Chemistry',
+    author: 'Paula Yurkanis Bruice',
+    edition: '8th Edition',
+    condition: 'used',
+    category: 'Chemistry',
+    isbn: '978-0134042282',
+    price: 200,
+    rent: 30,
+    type: 'sell',
+    description: 'Comprehensive organic chemistry textbook. Great for pre-med students.',
+    photo: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=400&h=500&fit=crop',
+    location: 'Science Block',
+    owner: 'user4',
+    status: 'available',
+    isApproved: true,
+    createdAt: new Date(Date.now() - 345600000).toISOString(), // 4 days ago
+  },
+  {
+    id: 'b5',
+    title: 'The Great Gatsby',
+    author: 'F. Scott Fitzgerald',
+    edition: 'Classic Edition',
+    condition: 'new',
+    category: 'Literature',
+    isbn: '978-0743273565',
+    type: 'free',
+    description: 'Classic American literature. Free for anyone who wants to read it.',
+    photo: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=500&fit=crop',
+    location: 'Hostel B',
+    owner: 'user5',
+    status: 'available',
+    isApproved: true,
+    createdAt: new Date(Date.now() - 432000000).toISOString(), // 5 days ago
+  },
+]
+
+mockDb['books'] = [...initialBooks]
 
 export const api = {
   async listComplaints() {
@@ -384,5 +508,74 @@ export const api = {
     if (found) found.found = true
     mockDb['lostFound'] = list
     return found ? JSON.parse(JSON.stringify(found)) as LostItem : null
+  },
+  // Books / Book Bank
+  async createBookListing(payload: {
+    title: string
+    author?: string
+    edition?: string
+    condition?: string
+    category?: string
+    isbn?: string
+    price?: number
+    rent?: number
+    type?: 'sell' | 'rent' | 'free'
+    description?: string
+    photo?: string
+    location?: string
+    owner?: string
+    isApproved?: boolean
+  }) {
+    await delay(200)
+    const book: Book = {
+      id: Math.random().toString(36).slice(2, 9),
+      createdAt: new Date().toISOString(),
+      status: 'available',
+      isApproved: payload.isApproved ?? false,
+      ...payload,
+    }
+    mockDb.books = [book, ...(mockDb.books || [])]
+    return JSON.parse(JSON.stringify(book)) as Book
+  },
+  async queryBooks(opts?: { q?: string; category?: string; type?: string; sort?: 'newest' | 'price-low' | 'price-high' }) {
+    await delay(150)
+    let list = (mockDb.books || []) as Book[]
+    if (opts?.category) list = list.filter((b) => b.category === opts.category)
+    if (opts?.type) list = list.filter((b) => b.type === opts.type)
+    if (opts?.q) {
+      const q = opts.q.toLowerCase()
+      list = list.filter((b) => (b.title || '').toLowerCase().includes(q) || (b.author || '').toLowerCase().includes(q) || (b.isbn || '').toLowerCase().includes(q))
+    }
+    if (opts?.sort === 'newest') list = list.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+    if (opts?.sort === 'price-low') list = list.sort((a, b) => (a.price || 0) - (b.price || 0))
+    if (opts?.sort === 'price-high') list = list.sort((a, b) => (b.price || 0) - (a.price || 0))
+    return JSON.parse(JSON.stringify(list)) as Book[]
+  },
+  async requestBook(payload: { bookId: string; requesterId: string; period?: string; message?: string }) {
+    await delay(200)
+    const req = { id: Math.random().toString(36).slice(2, 9), bookId: payload.bookId, requesterId: payload.requesterId, period: payload.period, message: payload.message, status: 'pending', createdAt: new Date().toISOString() }
+    ;(mockDb as any).bookRequests = [req, ...((mockDb as any).bookRequests || [])]
+    return JSON.parse(JSON.stringify(req))
+  },
+  async respondBookRequest(requestId: string, accept: boolean) {
+    await delay(200)
+    const reqs = (mockDb as any).bookRequests || []
+    const r = reqs.find((x: any) => x.id === requestId)
+    if (!r) return null
+    r.status = accept ? 'accepted' : 'rejected'
+    if (accept) {
+      const book = (mockDb.books || []).find((b: Book) => b.id === r.bookId)
+      if (book) book.status = 'lent'
+      return JSON.parse(JSON.stringify(r))
+    }
+    return JSON.parse(JSON.stringify(r))
+  },
+  async markBookReturned(bookId: string) {
+    await delay(150)
+    const books = mockDb.books || []
+    const b = books.find((x: Book) => x.id === bookId)
+    if (!b) return null
+    b.status = 'available'
+    return JSON.parse(JSON.stringify(b)) as Book
   },
 }

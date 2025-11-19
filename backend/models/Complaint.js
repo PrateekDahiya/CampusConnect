@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const complaintSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -10,4 +10,4 @@ const complaintSchema = new mongoose.Schema({
   images: [{ type: String }] // Array of image URLs
 });
 
-module.exports = mongoose.model('Complaint', complaintSchema);
+module.exports = mongoose.model("Complaint", complaintSchema);

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { api } from '../lib/mockApi'
-import type { Complaint, Cycle, Booking, LostItem } from '../lib/mockApi'
+import { api as realApi } from '../lib/api'
+import type { Complaint, Cycle, Booking, LostItem, Book } from '../lib/mockApi'
 
 type State = {
   complaints: Complaint[]
@@ -11,10 +12,12 @@ type State = {
   addRemark: (id: string, text: string, by?: string) => Promise<void>
   assignStaff: (id: string, staffId: string) => Promise<void>
   setSatisfaction: (id: string, satisfied: 'yes' | 'no') => Promise<void>
+  deleteComplaint: (id: string) => Promise<void>
   // cycles
   cycles: Cycle[]
   loadCycles: (filter?: { status?: Cycle['status']; location?: string }) => Promise<void>
   createListing: (p: Partial<Cycle> & { owner?: string }) => Promise<Cycle>
+  deleteCycle: (id: string) => Promise<void>
   requestCycle: (p: { cycleId: string; requesterId: string; message?: string; startTime?: string; expectedReturnTime?: string }) => Promise<any>
   respondCycleRequest: (requestId: string, accept: boolean) => Promise<any>
   markCycleReturned: (cycleId: string) => Promise<any>
@@ -25,12 +28,21 @@ type State = {
   // lost & found
   lostFound: LostItem[]
   loadLostFound: () => Promise<void>
-  addLostItem: (p: { title: string; category?: string; description?: string; location?: string; image?: string; reportedBy?: string; found?: boolean }) => Promise<void>
+  addLostItem: (p: { type: 'lost' | 'found'; title: string; category?: string; description?: string; location?: string; images?: string[] }) => Promise<void>
+  deleteLostItem: (id: string) => Promise<void>
   markFound: (id: string) => Promise<void>
   queryLostFound: (opts?: { category?: string; type?: 'lost' | 'found'; q?: string; sort?: 'newest' | 'oldest' }) => Promise<void>
   findMatches: (id: string) => Promise<LostItem[]>
   claimItem: (itemId: string, userId: string, proof?: string) => Promise<any>
   approveClaim: (itemId: string, claimId: string, approve: boolean) => Promise<any>
+  // books
+  createBookListing: (p: Omit<Book, 'id' | 'status' | 'createdAt'>) => Promise<Book>
+  queryBooks: (opts?: { q?: string; category?: string; type?: string; sort?: 'newest' | 'price-low' | 'price-high' }) => Promise<void>
+  requestBook: (p: { bookId: string; requesterId: string; period?: string; message?: string }) => Promise<any>
+  respondBookRequest: (requestId: string, accept: boolean) => Promise<any>
+  markBookReturned: (bookId: string) => Promise<Book | null>
+  books: Book[]
+  deleteBook: (id: string) => Promise<void>
 }
 
 export const useStore = create<State>((set: any, get: any) => ({
@@ -38,8 +50,27 @@ export const useStore = create<State>((set: any, get: any) => ({
   loading: false,
   loadComplaints: async () => {
     set({ loading: true })
-    const list = await api.listComplaints()
-    set({ complaints: list, loading: false })
+    try {
+      const backend = await realApi.complaints.getAllComplaints()
+      const converted = backend.map((b: any) => ({
+        id: b._id,
+        title: b.title,
+        description: b.description,
+        hostel: b.hostel,
+        status: b.status,
+        createdBy: b.createdBy,
+        assignedStaff: b.assignedStaff || '',
+        remarks: b.remarks || [],
+        complaintType: b.complaintType || 'General',
+        roomNumber: b.roomNumber || '',
+        attachments: b.attachments || [],
+        createdAt: b.createdAt,
+      }))
+      set({ complaints: converted, loading: false })
+    } catch (e) {
+      set({ loading: false })
+      throw e
+    }
   },
   addComplaint: async (payload: { title: string; hostel: string; description: string; complaintType?: string; roomNumber?: string; attachments?: string[]; createdBy?: string }) => {
     // optimistic update
@@ -83,6 +114,14 @@ export const useStore = create<State>((set: any, get: any) => ({
     await get().loadComplaints()
     return remark
   },
+  deleteComplaint: async (id: string) => {
+    try {
+      await realApi.complaints.deleteComplaint(id);
+      set((s: State) => ({ complaints: s.complaints.filter((c) => c.id !== id) }));
+    } catch (e) {
+      throw e;
+    }
+  },
   assignStaff: async (id: string, staffId: string) => {
     await api.assignComplaintStaff(id, staffId)
     await get().loadComplaints()
@@ -95,9 +134,18 @@ export const useStore = create<State>((set: any, get: any) => ({
   cycles: [] as Cycle[],
   bookings: [] as Booking[],
   createListing: async (p) => {
-    const created = await api.createCycleListing(p as any)
+    const created = await realApi.cycles.createCycle(p as any)
     await get().loadCycles()
     return created
+  },
+  deleteCycle: async (id: string) => {
+    try {
+      await realApi.cycles.deleteCycle(id);
+      // remove from cycles cache
+      set((s: State) => ({ cycles: s.cycles.filter((c: any) => (c._id || c.id) !== id) }));
+    } catch (e) {
+      throw e;
+    }
   },
   requestCycle: async (p) => {
     await api.requestCycle(p)
@@ -114,8 +162,13 @@ export const useStore = create<State>((set: any, get: any) => ({
   // lost & found
   lostFound: [] as LostItem[],
   loadLostFound: async () => {
-    const list = await api.listLostFound()
-    set({ lostFound: list })
+  const list = await realApi.lostFound.getItems()
+    const norm = (item: any) => ({
+      ...item,
+      id: item.id || item._id,
+      image: item.image || (item.images && item.images[0]),
+    })
+    set({ lostFound: list.map(norm) })
   },
   addLostItem: async (p) => {
     const temp: LostItem = {
@@ -124,52 +177,108 @@ export const useStore = create<State>((set: any, get: any) => ({
       category: p.category,
       description: p.description,
       location: p.location,
-      image: p.image,
-      reportedBy: p.reportedBy,
-      found: p.found ?? false,
+      image: p.images ? p.images[0] : undefined,
       createdAt: new Date().toISOString(),
     }
     set((s: State) => ({ lostFound: [temp, ...s.lostFound] }))
     try {
-      const created = await api.createLostItem(p as any)
-      set((s: State) => ({ lostFound: [created, ...s.lostFound.filter((i) => i.id !== temp.id)] }))
+  const created = await realApi.lostFound.reportItem(p as any)
+      const normCreated = {
+        ...created,
+        id: created.id || created._id,
+        image: created.image || (created.images && created.images[0]),
+      }
+      set((s: State) => ({ lostFound: [normCreated, ...s.lostFound.filter((i) => i.id !== temp.id)] }))
     } catch (e) {
       set((s: State) => ({ lostFound: s.lostFound.filter((i) => i.id !== temp.id) }))
       throw e
+    }
+  },
+  deleteLostItem: async (id: string) => {
+    try {
+      await realApi.lostFound.deleteItem(id);
+      set((s: State) => ({ lostFound: s.lostFound.filter((i: any) => ((i.id || i._id) !== id)) }));
+    } catch (e) {
+      throw e;
     }
   },
   markFound: async (id) => {
     const prev = get().lostFound
     set((s: State) => ({ lostFound: s.lostFound.map((i) => (i.id === id ? { ...i, found: true } : i)) }))
     try {
-      await api.markItemFound(id)
+  if (!id) throw new Error('Invalid id');
+  await realApi.lostFound.markFound(id)
+      // refresh to ensure we have server-normalized ids/_ids
+      await get().loadLostFound()
     } catch (e) {
       set({ lostFound: prev })
       throw e
     }
   },
   queryLostFound: async (opts) => {
-    const list = await api.queryLostFound(opts as any)
+  const list = await realApi.lostFound.getItems(opts as any)
     set({ lostFound: list })
   },
-  findMatches: async (id) => {
-    const matches = await api.findMatchesForItem(id)
-    return matches
+  // books
+  books: [] as Book[],
+  deleteBook: async (id: string) => {
+    try {
+      await realApi.books.deleteBook(id);
+      set((s: State) => ({ books: s.books.filter((b: any) => ((b.id || (b._id as any)) !== id)) }));
+    } catch (e) {
+      throw e;
+    }
   },
-  claimItem: async (itemId, userId, proof) => {
-    const claim = await api.claimItem(itemId, userId, proof)
+  findMatches: async (id) => {
+  if (!id) throw new Error('Invalid id')
+  const matches = await realApi.lostFound.findMatches(id)
+    const norm = (item: any) => ({
+      ...item,
+      id: item.id || item._id,
+      image: item.image || (item.images && item.images[0]),
+    })
+    return matches.map(norm)
+  },
+  claimItem: async (itemId, _userId, proof) => {
+  if (!itemId) throw new Error('Invalid id')
+  const claim = await realApi.lostFound.claimItem(itemId, proof)
     // refresh list for simplicity
     await get().loadLostFound()
     return claim
   },
   approveClaim: async (itemId, claimId, approve) => {
-    const res = await api.approveClaim(itemId, claimId, approve)
+  const res = await realApi.lostFound.approveClaim(itemId, claimId, approve)
     await get().loadLostFound()
     return res
   },
+  // books
+  createBookListing: async (p) => {
+    const created = await realApi.books.addBook(p as any)
+    // refresh the list to show new book
+    await get().queryBooks()
+    return created
+  },
+  queryBooks: async (opts) => {
+    const list = await realApi.books.getBooks(opts as any)
+    const norm = list.map((b: any) => ({ ...b, id: b._id || b.id }))
+    set({ books: norm })
+  },
+  requestBook: async (p) => {
+    const req = await api.requestBook(p)
+    return req
+  },
+  respondBookRequest: async (id, accept) => {
+    const res = await api.respondBookRequest(id, accept)
+    return res
+  },
+  markBookReturned: async (id) => {
+    const res = await api.markBookReturned(id)
+    return res
+  },
   loadCycles: async (filter) => {
-    const list = await api.listCycles(filter as any)
-    set({ cycles: list })
+    const list = await realApi.cycles.getAvailableCycles(filter?.location)
+    const norm = list.map((c: any) => ({ ...c, id: c._id || c.id }))
+    set({ cycles: norm })
   },
   bookCycle: async (userId, cycleId, expectedReturnTime) => {
     await api.createBooking(userId, cycleId, expectedReturnTime)
@@ -177,9 +286,10 @@ export const useStore = create<State>((set: any, get: any) => ({
     await get().loadCycles({ status: 'available' })
     await get().loadBookings(userId)
   },
-  loadBookings: async (userId) => {
-    const list = await api.listBookings(userId)
-    set({ bookings: list })
+  loadBookings: async () => {
+    const list = await realApi.bookings.getMyBookings()
+    const norm = list.map((b: any) => ({ ...b, id: b._id || b.id }))
+    set({ bookings: norm })
   },
   returnBooking: async (bookingId) => {
     await api.returnBooking(bookingId)
