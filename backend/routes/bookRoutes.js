@@ -1,5 +1,11 @@
 const express = require("express");
 const router = express.Router();
+const bookController = require('../controllers/bookController');
+const auth = require('../middleware/auth');
+const upload = require('../middleware/multer');
+
+// Add a new book
+router.post('/', auth, upload.single('image'), bookController.addBook);
 const bookController = require("../controllers/bookController");
 const auth = require("../middleware/auth");
 

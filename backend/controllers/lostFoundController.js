@@ -1,3 +1,35 @@
+const LostFound = require('../models/LostFound');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
+
+// Report a lost/found item
+exports.reportItem = async (req, res) => {
+  const { type, title, description, location } = req.body;
+  try {
+    const images = [];
+
+    if (req.files) {
+      for (const file of req.files) {
+        const result = await cloudinary.uploader.upload(file.path);
+        images.push(result.secure_url);
+        fs.unlinkSync(file.path); // Clean up temporary file
+      }
+    }
+
+    const item = new LostFound({
+      type,
+      title,
+      description,
+      location,
+      images,
+      reportedBy: req.user.userId
+    });
+    await item.save();
+    res.status(201).json(item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
 const LostFound = require("../models/LostFound");
 
 // Report a lost/found item

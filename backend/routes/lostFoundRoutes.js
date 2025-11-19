@@ -1,5 +1,11 @@
 const express = require("express");
 const router = express.Router();
+const lostFoundController = require('../controllers/lostFoundController');
+const auth = require('../middleware/auth');
+const upload = require('../middleware/multer');
+
+// Report a lost/found item
+router.post('/', auth, upload.array('images', 5), lostFoundController.reportItem);
 const lostFoundController = require("../controllers/lostFoundController");
 const auth = require("../middleware/auth");
 

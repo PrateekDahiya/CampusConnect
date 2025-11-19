@@ -1,3 +1,30 @@
+const Cycle = require('../models/Cycle');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
+
+// Create a new cycle listing
+exports.createCycle = async (req, res) => {
+  const { name, model, hourlyRate, dailyRate, hostel } = req.body;
+  try {
+    const images = [];
+
+    if (req.files) {
+      for (const file of req.files) {
+        const result = await cloudinary.uploader.upload(file.path);
+        images.push(result.secure_url);
+        fs.unlinkSync(file.path); // Clean up temporary file
+      }
+    }
+
+    const cycle = new Cycle({
+      name,
+      model,
+      hourlyRate,
+      dailyRate,
+      hostel,
+      images,
+      owner: req.user.userId,
+      available: true
 const Cycle = require("../models/Cycle");
 
 // Create a new cycle listing

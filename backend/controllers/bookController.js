@@ -1,3 +1,29 @@
+const Book = require('../models/Book');
+const BookBorrow = require('../models/BookBorrow');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
+
+// Add a new book
+exports.addBook = async (req, res) => {
+  const { title, author, isbn, hostel, description } = req.body;
+  try {
+    let image = '';
+
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path);
+      image = result.secure_url;
+      fs.unlinkSync(req.file.path); // Clean up temporary file
+    }
+
+    const book = new Book({
+      title,
+      author,
+      isbn,
+      hostel,
+      image,
+      description,
+      owner: req.user.userId,
+      available: true
 const Book = require("../models/Book");
 const BookBorrow = require("../models/BookBorrow");
 
